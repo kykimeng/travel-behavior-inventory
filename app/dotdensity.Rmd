@@ -1,0 +1,39 @@
+---
+title: "Dot Density Map"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=12, fig.height=12}
+p <- leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+                                             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+                                             under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+                                             Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+                                             under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+      setView(lat = 44.963, lng = -93.22, zoom = 11)
+if (length(input$route_dd) == 0) p <- p
+route_map <- subset(routes, route %in% input$route_dd)
+if (input$measure_dd == "Origin") {
+  temp <- na.omit(tbi[route %in% input$route_dd, .(route, lat = ORIGIN_LAT, lon = ORIGIN_LON, BOARDING_LOCATION, ALIGHTING_LOCATION, ID)])
+} else if (input$measure_dd == "Destination") {
+  temp <- na.omit(tbi[route %in% input$route_dd, .(route, lat = DESTINATION_LAT, lon = DESTINATION_LON, BOARDING_LOCATION, ALIGHTING_LOCATION, ID)])
+} else if (input$measure_dd == "Home/Hotel") {
+  temp <- na.omit(tbi[route %in% input$route_dd, .(route, lat = HOME_OR_HOTEL_ADDR_LAT, lon = HOME_OR_HOTEL_ADDR_LON, BOARDING_LOCATION, ALIGHTING_LOCATION, ID)])
+}
+pal <- colorNumeric(c("#0053A0", "#008144", "#F68A1E"), domain = c(min(as.numeric(input$route_dd)), max(as.numeric(input$route_dd))))
+if (input$plot_cluster_dd) {
+  p <- p %>%
+    addPolylines(data = route_map, color = "#008144", weight = 4, opacity = 1) %>%
+    addCircleMarkers(data = temp, lng = ~as.numeric(lon), lat = ~as.numeric(lat), color = ~pal(as.numeric(route)),
+                     weight = 1, opacity = 0.5, radius = 5, popup = ~paste0("From: ", BOARDING_LOCATION, "<br>To: ", ALIGHTING_LOCATION, "<br>ID: ", ID), 
+                     clusterOptions = markerClusterOptions()) %>%
+    addLegend(position = 'bottomleft', colors = pal(sort(as.numeric(input$route_dd))), labels = paste0("Route", input$route_dd))
+} else {
+  p <- p %>%
+    addPolylines(data = route_map, color = "#008144", weight = 4, opacity = 1) %>%
+    addCircleMarkers(data = temp, lng = ~as.numeric(lon), lat = ~as.numeric(lat), color = ~pal(as.numeric(route)),
+                     weight = 1, opacity = 0.5, radius = 5, popup = ~paste0("From: ", BOARDING_LOCATION, "<br>To: ", ALIGHTING_LOCATION, "<br>ID: ", ID)) %>%
+    addLegend(position = 'bottomleft', colors = pal(sort(as.numeric(input$route_dd))), labels = paste0("Route", input$route_dd))
+}
+p
+```

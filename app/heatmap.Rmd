@@ -1,0 +1,17 @@
+---
+title: "Heat Map"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=12, fig.height=12}
+leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+                                             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+                                             under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+                                             Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+                                             under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+      setView(lat = 44.963, lng = -93.22, zoom = 11) %>%
+      addPolylines(data = for_heatmap(), color = "#008144", weight = 4, opacity = 1) %>%
+      addHeatmap(data = tbi_hm(), lng = ~lon, lat = ~lat, blur = 9, radius = 6)
+
+```

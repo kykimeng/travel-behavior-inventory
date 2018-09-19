@@ -1,0 +1,11 @@
+---
+title: "Flow Chart"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=8, fig.height=4}
+parset(dataInputFlow(), dimensions = c('Boarding Location', 'Alighting Location'),
+           value = htmlwidgets::JS("function(d){return d.N}"),
+           tension = 0.5)
+```

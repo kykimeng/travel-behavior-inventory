@@ -1,0 +1,346 @@
+---
+title: "Origin-Destination Map by Custom Bounding Box"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=12, fig.height=12}
+p <- leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+                                             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+                                             under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+                                             Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+                                             under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+      setView(lat = 44.963, lng = -93.22, zoom = 11)
+sp_p <- track_clicks$curr_box
+if (length(sp_p) == 0) {p <- p} else {
+  if (!is.null(input$rf_bbox)) {
+    temp <- tbi[route %in% input$rf_bbox]
+  } else {
+    temp <- tbi
+  }
+  if (!is.null(input$rtf_bbox)) {
+    temp <- temp[RouteType %in% input$rtf_bbox]
+  }
+  if (!is.null(input$tpf_bbox)) {
+    temp <- temp[TIME_PERIOD %in% input$tpf_bbox]
+  }
+  if (input$dest_group == "None") {
+    for (i in 1:length(sp_p)) {
+      sp_temp <- sp_p[[i]]
+      if (input$od_bbox == 'orig') {
+        spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                       data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+        proj4string(spOD) <- proj4string(sp_temp)
+        od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+        ids <- od$ID
+        allLines <- do.call('rbind', od_lines[ids])
+        endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                        TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                        TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                        TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route, unlinked_wgts, LINKED_MULTIPLIER)]
+      } else if (input$od_bbox == 'dest') {
+        spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                             .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                        data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+        proj4string(spOD2) <- proj4string(sp_temp)
+        od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+        ids2 <- od2$ID
+        allLines <- do.call('rbind', od_lines[ids2])
+        endPoints <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                         TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                         TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                         TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route, unlinked_wgts, LINKED_MULTIPLIER)]
+      } else {
+        spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                       data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+        proj4string(spOD) <- proj4string(sp_temp)
+        od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+        ids <- od$ID
+        spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                             .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                        data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+        proj4string(spOD2) <- proj4string(sp_temp)
+        od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+        ids2 <- od2$ID
+        allLines <- do.call('rbind', od_lines[c(ids, ids2)])
+        ep1 <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                  TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                  TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                  TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route, unlinked_wgts, LINKED_MULTIPLIER)]
+        ep2 <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                   TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                   TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                   TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route, unlinked_wgts, LINKED_MULTIPLIER)]
+        endPoints <- rbind(ep1, ep2)
+      }
+      if (length(allLines) == 0) {p <- p %>% addPolygons(data = sp_temp, color = "#ED1B2E", opacity = 0.5, weight = 1)} else {
+        p <- p %>% 
+          addPolygons(data = sp_temp, color = "#ED1B2E", opacity = 0.5, weight = 1) %>%
+          addCircleMarkers(data = endPoints, lng = ~lon, lat = ~lat, radius = 4, opacity = .7, weight = 1, color = "#0053A0", 
+                           popup = ~paste0("Route taken: ", route, " ", ifelse(is.na(TRANSFERS_FROM_FIRST_CODE), "", TRANSFERS_FROM_FIRST_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_SECOND_CODE), "", TRANSFERS_FROM_SECOND_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_THIRD_CODE), "", TRANSFERS_FROM_THIRD_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_FOURTH_CODE), "", TRANSFERS_FROM_FOURTH_CODE), " ",
+                                           ifelse(is.na(TRANSFERS_TO_FIRST_CODE), "", TRANSFERS_TO_FIRST_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_SECOND_CODE), "", TRANSFERS_TO_SECOND_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_THIRD_CODE), "", TRANSFERS_TO_THIRD_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_FOURTH_CODE), "", TRANSFERS_TO_FOURTH_CODE),
+                                           "<br>Time period: ", TIME_PERIOD)) %>%
+          addPolylines(data = allLines, weight = 0.7, opacity = .3, color = "#0053A0")
+      }
+    }
+  } else if (input$dest_group == "Tract") {
+    if (input$heat_bbox) {
+      for (i in 1:length(sp_p)) {
+        sp_temp <- sp_p[[i]]
+        if (input$od_bbox == 'orig') {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(sp_temp)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+          ids <- od$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else if (input$od_bbox == 'dest') {
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(sp_temp)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+          ids <- od2$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(sp_temp)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(sp_temp)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+          ids <- c(od$ID, od2$ID)
+          ep1 <- tbi[ID %in% od$ID, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          ep2 <- tbi[ID %in% od2$ID, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          endPoints <- rbind(ep1, ep2)
+        }
+        if (i == 1) {
+          all_ids <- ids
+          all_points <- endPoints
+        } else {
+          all_ids <- c(all_ids, ids)
+          all_points <- rbindlist(list(all_points, endPoints))
+        }
+      }
+      if (input$linked_odbb) {
+        all_points <- all_points[, .(lon, lat, ID, N = unlinked_wgts * LINKED_MULTIPLIER)]
+      } else {
+        all_points <- all_points[, .(lon, lat, ID, N = unlinked_wgts)]
+      }
+      all_points <- SpatialPointsDataFrame(all_points[, .(lon, lat)], all_points[, .(ID, N)])
+      proj4string(all_points) <- proj4string(tracts)
+      tract_points <- data.table(cbind(all_points@data, sp::over(all_points, tracts)))
+      temp3 <- na.omit(tract_points[, .(N = sum(N)), by = .(GEOID10, dest_lon = as.numeric(INTPTLON10), dest_lat = as.numeric(INTPTLAT10))])
+      all_temp <- temp3 [, .(N = sum(N)), by = .(GEOID10)][N >= input$ignoreN_bbox][, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+      if (nrow(all_temp) == 0) {p <- p %>% addPolygons(data = do.call('rbind', sp_p), 
+                    weight = 3, opacity = 1, fillOpacity = .5, color = "black")} else {
+                      pal <- colorNumeric(c("#c6dbef", "#6baed6", "#2171b5", "#08306b"), domain = range(all_temp$colN))
+                      dest_bbox <- subset(sp::merge(tracts, all_temp, by = "GEOID10"), !is.na(N))
+                      p <- p %>%
+                        addPolygons(data = do.call('rbind', sp_p), 
+                                    weight = 3, opacity = 1, fillOpacity = .5, color = "black") %>%
+                        addPolygons(data = dest_bbox, weight = 1, opacity = 1, fillOpacity = .7, color = ~pal(colN), 
+                                    label = ~paste(round(N, 0)))
+                    }
+    } else {
+      for (i in 1:length(sp_p)) {
+        tempi <- sp_p[[i]]
+        cntrd <- centroid(tempi)
+        if (input$od_bbox == 'orig') {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(tempi)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tempi))))
+          ids <- od$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else if (input$od_bbox == 'dest') {
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(tempi)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tempi))))
+          ids <- od2$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(tempi)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tempi))))
+          ids <- od$ID
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(tempi)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tempi))))
+          ids <- c(od$ID, od2$ID)
+          ep1 <- tbi[ID %in% od$ID, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          ep2 <- tbi[ID %in% od2$ID, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          endPoints <- rbind(ep1, ep2)
+        }
+        if (input$linked_odbb) {
+          all_points <- endPoints[, .(lon, lat, ID, N = unlinked_wgts * LINKED_MULTIPLIER)]
+        } else {
+          all_points <- endPoints[, .(lon, lat, ID, N = unlinked_wgts)]
+        }
+        all_points <- SpatialPointsDataFrame(all_points[, .(lon, lat)], all_points[, .(ID, N)])
+        proj4string(all_points) <- proj4string(tracts)
+        tract_points <- data.table(cbind(all_points@data, sp::over(all_points, tracts)))
+        temp2 <- na.omit(tract_points[, .(N = sum(N)), 
+                                      by = .(GEOID10, dest_lon = as.numeric(INTPTLON10),
+                                             dest_lat = as.numeric(INTPTLAT10))])[, `:=` (orig_lon = cntrd[,1], orig_lat = cntrd[,2])]
+        temp2 <- temp2[N >= input$ignoreN_bbox]
+        temp2[, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+        if (nrow(temp2) == 0) {p <- p %>% addPolygons(data = subset(tracts, GEOID10 %in% temp2$GEOID10), weight = 1, opacity = 1, 
+                                                      fillOpacity = .2, color = "#008144")} else {
+          flows <- gcIntermediate(temp2[,5:6], temp2[,2:3], sp = TRUE, addStartEnd = TRUE)
+          flows$counts <- round(temp2$N, 0)
+          flows$destinations <- temp2$GEOID10
+          flows$colN <- temp2$colN
+          hover <- paste0("To ", flows$destinations, ': ', as.character(flows$counts))
+          pal <- colorNumeric(c("#a6bddb", "#0570b0", "#023858"), domain = range(temp2$colN))
+          p <- p %>% 
+            addPolygons(data = subset(tracts, GEOID10 %in% temp2$GEOID10), weight = 1, opacity = 1, fillOpacity = .2, color = "#008144") %>%
+            addPolygons(data = tempi, weight = 1, opacity = 1, fillOpacity = .2, color = "#ED1B2E") %>%
+            addPolylines(data = flows, weight = ~log(counts, 2)+1, label = hover, 
+                         group = ~destinations, color = ~pal(colN), opacity = 1)
+        }
+      }
+    }
+  } else if (input$dest_group == "Block Group") {
+    if (input$heat_bbox) {
+      for (i in 1:length(sp_p)) {
+        sp_temp <- sp_p[[i]]
+        if (input$od_bbox == 'orig') {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(sp_temp)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+          ids <- od$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else if (input$od_bbox == 'dest') {
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(sp_temp)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+          ids <- od2$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(sp_temp)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, sp_temp))))
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(sp_temp)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, sp_temp))))
+          ids <- c(od$ID, od2$ID)
+          ep1 <- tbi[ID %in% od$ID, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          ep2 <- tbi[ID %in% od2$ID, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          endPoints <- rbind(ep1, ep2)
+        }
+        if (i == 1) {
+          all_ids <- ids
+          all_points <- endPoints
+        } else {
+          all_ids <- c(all_ids, ids)
+          all_points <- rbindlist(list(all_points, endPoints))
+        }
+      }
+      if (input$linked_odbb) {
+        all_points <- all_points[, .(lon, lat, ID, N = unlinked_wgts * LINKED_MULTIPLIER)]
+      } else {
+        all_points <- all_points[, .(lon, lat, ID, N = unlinked_wgts)]
+      }
+      all_points <- SpatialPointsDataFrame(all_points[, .(lon, lat)], all_points[, .(ID, N)])
+      proj4string(all_points) <- proj4string(blockgroups)
+      bg_points <- data.table(cbind(all_points@data, sp::over(all_points, blockgroups)))
+      temp3 <- na.omit(bg_points[, .(N = sum(N)), by = .(GEOID10, dest_lon = as.numeric(INTPTLON10), dest_lat = as.numeric(INTPTLAT10))])
+      all_temp <- temp3 [, .(N = sum(N)), by = .(GEOID10)][N >= input$ignoreN_bbox][, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+      if (nrow(all_temp) == 0) {p <- p %>% addPolygons(data = do.call('rbind', sp_p), 
+                    weight = 3, opacity = 1, fillOpacity = .5, color = "black")} else {
+                      pal <- colorNumeric(c("#c6dbef", "#6baed6", "#2171b5", "#08306b"), domain = range(all_temp$colN))
+                      dest_bbox <- subset(sp::merge(blockgroups, all_temp, by = "GEOID10"), !is.na(N))
+                      p <- p %>%
+                        addPolygons(data = do.call('rbind', sp_p), 
+                                    weight = 3, opacity = 1, fillOpacity = .5, color = "black") %>%
+                        addPolygons(data = dest_bbox, weight = 1, opacity = 1, fillOpacity = .7, color = ~pal(colN), 
+                                    label = ~paste(round(N, 0)))
+                    }
+    } else {
+      for (i in 1:length(sp_p)) {
+        tempi <- sp_p[[i]]
+        cntrd <- centroid(tempi)
+        if (input$od_bbox == 'orig') {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(tempi)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tempi))))
+          ids <- od$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else if (input$od_bbox == 'dest') {
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(tempi)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tempi))))
+          ids <- od2$ID
+          endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+        } else {
+          spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                         data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+          proj4string(spOD) <- proj4string(tempi)
+          od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tempi))))
+          ids <- od$ID
+          spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                               .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                          data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+          proj4string(spOD2) <- proj4string(tempi)
+          od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tempi))))
+          ids <- c(od$ID, od2$ID)
+          ep1 <- tbi[ID %in% od$ID, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          ep2 <- tbi[ID %in% od2$ID, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), unlinked_wgts, LINKED_MULTIPLIER)]
+          endPoints <- rbind(ep1, ep2)
+        }
+        if (input$linked_odbb) {
+          all_points <- endPoints[, .(lon, lat, ID, N = unlinked_wgts * LINKED_MULTIPLIER)]
+        } else {
+          all_points <- endPoints[, .(lon, lat, ID, N = unlinked_wgts)]
+        }
+        all_points <- SpatialPointsDataFrame(all_points[, .(lon, lat)], all_points[, .(ID, N)])
+        proj4string(all_points) <- proj4string(blockgroups)
+        bg_points <- data.table(cbind(all_points@data, sp::over(all_points, blockgroups)))
+        temp2 <- na.omit(bg_points[, .(N = sum(N)), 
+                                      by = .(GEOID10, dest_lon = as.numeric(INTPTLON10), dest_lat = as.numeric(INTPTLAT10))])[, `:=` (orig_lon = cntrd[,1], orig_lat = cntrd[,2])]
+        temp2 <- temp2[N >= input$ignoreN_bbox]
+        temp2[, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+        if (nrow(temp2) == 0) {p <- p %>% addPolygons(data = subset(blockgroups, GEOID10 %in% temp2$GEOID10), 
+                                                      weight = 1, opacity = 1, fillOpacity = .2, color = "#008144")} else {
+          flows <- gcIntermediate(temp2[,5:6], temp2[,2:3], sp = TRUE, addStartEnd = TRUE)
+          flows$counts <- round(temp2$N, 0)
+          flows$destinations <- temp2$GEOID10
+          flows$colN <- temp2$colN
+          hover <- paste0("To ", flows$destinations, ': ', as.character(flows$counts))
+          pal <- colorNumeric(c("#a6bddb", "#0570b0", "#023858"), domain = range(temp2$colN))
+          p <- p %>% 
+            addPolygons(data = subset(blockgroups, GEOID10 %in% temp2$GEOID10), weight = 1, opacity = 1, fillOpacity = .2, color = "#008144") %>%
+            addPolygons(data = tempi, weight = 1, opacity = 1, fillOpacity = .2, color = "#ED1B2E") %>%
+            addPolylines(data = flows, weight = ~log(counts, 2)+1, label = hover, 
+                         group = ~destinations, color = ~pal(colN), opacity = 1)
+        }
+      }
+    }
+  }
+}
+p
+```

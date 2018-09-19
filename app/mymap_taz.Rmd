@@ -1,0 +1,201 @@
+---
+title: "Origin-Destination Map by Traffic Analysis Zone"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=12, fig.height=12}
+p <- leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+                                             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+                                             under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+                                             Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+                                             under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+      setView(lat = 44.963, lng = -93.22, zoom = 11)
+current_taz <- rv$curr_taz
+if (is.null(current_taz)) {p <- p} else {
+  if (input$stl_dat_taz == "TBI Data Only") {
+    if (input$taz_cluster) {
+      if (input$od_taz == 'orig') {
+        tfm_temp <- copy(taz_fm)
+      } else if (input$od_taz == 'dest') {
+        tfm_temp <- taz_fm[, .(ID, unlinked_wgts, LINKED_MULTIPLIER, dest_taz = orig_taz, dest_lat = orig_lat, dest_lon = orig_lon, 
+                             orig_taz = dest_taz, orig_lat = dest_lat, orig_lon = dest_lon, route, RouteType, TimePeriod)]
+      } else if (input$od_taz == 'both') {
+        tfm_temp <- copy(taz_fm)
+        tfm_temp2 <- taz_fm[, .(ID, unlinked_wgts, LINKED_MULTIPLIER, dest_taz = orig_taz, dest_lat = orig_lat, dest_lon = orig_lon, 
+                                orig_taz = dest_taz, orig_lat = dest_lat, orig_lon = dest_lon, route, RouteType, TimePeriod)]
+        tfm_temp <- rbindlist(list(tfm_temp, tfm_temp2))
+      }
+      if (!is.null(input$rf_taz)) {
+        temp <- tfm_temp[route %in% input$rf_taz]
+       } else {
+         temp <- tfm_temp
+      }
+      if (!is.null(input$rtf_taz)) {
+        temp <- temp[RouteType %in% input$rtf_taz]
+      }
+      if (!is.null(input$tpf_taz)) {
+        temp <- temp[TimePeriod %in% input$tpf_taz]
+      }
+      if (input$linked_odtaz) {
+        temp <- na.omit(temp[orig_taz %in% current_taz][, .(N = sum(unlinked_wgts * LINKED_MULTIPLIER)),
+                                                        by = .(orig_taz, orig_lat, orig_lon, dest_taz, dest_lat, dest_lon)][N >= input$ignoreN_taz])
+      } else {
+        temp <- na.omit(temp[orig_taz %in% current_taz][, .(N = sum(unlinked_wgts)),
+                                                        by = .(orig_taz, orig_lat, orig_lon, dest_taz, dest_lat, dest_lon)][N >= input$ignoreN_taz])
+      }
+      if (nrow(temp) == 0) {p <- p %>% addPolygons(data = subset(taz, TAZ %in% current_taz), 
+                      weight = 3, opacity = 1, fillOpacity = .5, color = "black")} else {
+                        if (input$heat_taz) {
+                          temp <- temp[, .(N = sum(N)), by = .(dest_taz)][, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+                          pal <- colorNumeric(c("#c6dbef", "#6baed6", "#2171b5", "#08306b"), domain = range(temp$colN))
+                          dest_taz <- subset(sp::merge(taz, temp, by.x = "TAZ", by.y = "dest_taz"), !is.na(N))
+                          p <- p %>% 
+                            addPolygons(data = subset(taz, TAZ %in% current_taz), 
+                                        weight = 3, opacity = 1, fillOpacity = .5, color = "black") %>%
+                            addPolygons(data = dest_taz, weight = 1, opacity = 1, fillOpacity = .7, color = ~pal(colN), 
+                                        label = ~paste(round(N, 0)))
+                        } else {
+                          temp[, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+                          flows <- gcIntermediate(temp[,6:5], temp[,3:2], sp = TRUE, addStartEnd = TRUE)
+                          flows$counts <- round(temp$N, 0)
+                          flows$origins <- temp$orig_taz
+                          flows$destinations <- temp$dest_taz
+                          flows$colN <- temp$colN
+                          hover <- paste0(flows$origins, " to ", 
+                                          flows$destinations, ': ', 
+                                          as.character(flows$counts))
+                          pal <- colorNumeric(c("#a6bddb", "#0570b0", "#023858"), domain = range(temp$colN))
+                          p <- p %>% 
+                            addPolygons(data = subset(taz, TAZ %in% temp$dest_taz), weight = 1, opacity = 1, fillOpacity = .2, color = "#008144") %>%
+                            addPolygons(data = subset(taz, TAZ %in% temp$orig_taz), weight = 1, opacity = 1, fillOpacity = .2, color = "#ED1B2E") %>%
+                            addPolylines(data = flows, weight = ~log(counts, 2)+1, label = hover, 
+                                         group = ~destinations, color = ~pal(colN), opacity = 1)
+                        }
+                      }
+      
+    } else {
+      tazz <- subset(taz, TAZ %in% current_taz)
+      if (!is.null(input$rf_taz)) {
+        temp <- tbi[route %in% input$rf_taz]
+      } else {
+        temp <- tbi
+      }
+      if (!is.null(input$rtf_taz)) {
+        temp <- temp[RouteType %in% input$rtf_taz]
+      }
+      if (!is.null(input$tpf_taz)) {
+        temp <- temp[TIME_PERIOD %in% input$tpf_taz]
+      }
+      if (input$od_taz == 'orig') {
+        spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                       data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+        proj4string(spOD) <- proj4string(tazz)
+        od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tazz))))
+        ids <- od$ID
+        allLines <- do.call('rbind', od_lines[ids])
+        endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                        TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                        TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                        TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+      } else if (input$od_taz == 'dest') {
+        spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                             .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                        data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+        proj4string(spOD2) <- proj4string(tazz)
+        od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tazz))))
+        ids2 <- od2$ID
+        allLines <- do.call('rbind', od_lines[ids2])
+        endPoints <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                         TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                         TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                         TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+      } else {
+        spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                       data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+        proj4string(spOD) <- proj4string(tazz)
+        od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, tazz))))
+        ids <- od$ID
+        spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                             .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                        data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+        proj4string(spOD2) <- proj4string(tazz)
+        od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, tazz))))
+        ids2 <- od2$ID
+        allLines <- do.call('rbind', od_lines[c(ids, ids2)])
+        ep1 <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                  TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                  TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                  TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+        ep2 <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                   TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                   TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                   TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+        endPoints <- rbind(ep1, ep2)
+      }
+      if (length(allLines) == 0) {p <- p %>% addPolygons(data = tazz, color = "#ED1B2E", opacity = 0.5, weight = 1)} else {
+        p <- p %>% 
+          addPolygons(data = tazz, color = "#ED1B2E", opacity = 0.5, weight = 1) %>%
+          addCircleMarkers(data = endPoints, lng = ~lon, lat = ~lat, radius = 4, opacity = .7, weight = 1, color = "#0053A0", 
+                           popup = ~paste0("Route taken: ", route, " ", ifelse(is.na(TRANSFERS_FROM_FIRST_CODE), "", TRANSFERS_FROM_FIRST_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_SECOND_CODE), "", TRANSFERS_FROM_SECOND_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_THIRD_CODE), "", TRANSFERS_FROM_THIRD_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_FROM_FOURTH_CODE), "", TRANSFERS_FROM_FOURTH_CODE), " ",
+                                           ifelse(is.na(TRANSFERS_TO_FIRST_CODE), "", TRANSFERS_TO_FIRST_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_SECOND_CODE), "", TRANSFERS_TO_SECOND_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_THIRD_CODE), "", TRANSFERS_TO_THIRD_CODE), " ", 
+                                           ifelse(is.na(TRANSFERS_TO_FOURTH_CODE), "", TRANSFERS_TO_FOURTH_CODE),
+                                           "<br>Time period: ", TIME_PERIOD)) %>%
+          addPolylines(data = allLines, weight = 0.7, opacity = .3, color = "#0053A0")
+      }  
+    }
+  } else if (input$stl_dat_taz == "Streetlight Data Only") {
+    current_taz <- rv$curr_taz
+    if ("0: All Day (12am-12am)" %in% input$tpf_taz_sl) {
+      temp <- sl_taz[`Day Part` == "0: All Day (12am-12am)" & `Day Type` == input$dtf_taz_sl, .(`Destination Zone ID`, dest_lat, dest_lon, 
+                                                                                                `Origin Zone ID`, orig_lat, orig_lon, 
+                                                                                                `Day Type`, `Day Part`, `O-D Traffic (StL Index)`)]
+    } else {
+      temp <- sl_taz[`Day Part` %in% input$tpf_taz_sl & `Day Type` == input$dtf_taz_sl, .(`Destination Zone ID`, dest_lat, dest_lon, 
+                                                                                          `Origin Zone ID`, orig_lat, orig_lon, 
+                                                                                          `Day Type`, `Day Part`, `O-D Traffic (StL Index)`)]
+    }
+    if (input$od_taz == 'dest') {
+      temp <- temp[, .(`Destination Zone ID` = `Origin Zone ID`, dest_lat = orig_lat, dest_lon = orig_lon, 
+                       `Origin Zone ID` = `Destination Zone ID`, orig_lat = dest_lat, orig_lon = dest_lon,
+                       `Day Type`, `Day Part`, `O-D Traffic (StL Index)`)]
+    } else if (input$od_taz == 'both') {
+      temp2 <- temp[, .(`Destination Zone ID` = `Origin Zone ID`, dest_lat = orig_lat, dest_lon = orig_lon, 
+                        `Origin Zone ID` = `Destination Zone ID`, orig_lat = dest_lat, orig_lon = dest_lon,
+                        `Day Type`, `Day Part`, `O-D Traffic (StL Index)`)]
+      temp <- rbindlist(list(temp, temp2))
+    }
+    temp <- temp[`Origin Zone ID` %in% current_taz]
+    if (input$heat_taz_sl) {
+      temp2 <- temp[, .(N = sum(`O-D Traffic (StL Index)`, na.rm = TRUE)), by = .(`Destination Zone ID`)]
+      temp2 <- subset(sp::merge(taz, temp2, by.x = "TAZ", by.y = "Destination Zone ID"), !is.na(N))
+      pal <- colorNumeric(c("#c6dbef", "#6baed6", "#2171b5", "#08306b"), domain = range(temp2$N))
+      p <- p %>%
+        addPolygons(data = subset(taz, TAZ %in% current_taz), weight = 3, fillOpacity = .5, opacity = 1, color = 'black') %>% 
+        addPolygons(data = temp2, color = ~pal(N), weight = 1, fillOpacity = .7, opacity = 1, label = ~paste("Estimated: ", N))
+    } else {
+      temp <- temp[, .(`O-D Traffic (StL Index)` = sum(`O-D Traffic (StL Index)`)), by = .(`Origin Zone ID`, orig_lat, orig_lon,
+                                                                                           `Destination Zone ID`, dest_lat, dest_lon, 
+                                                                                           `Day Type`, `Day Part`)]
+      flows <- gcIntermediate(temp[,6:5], temp[,3:2], sp = TRUE, addStartEnd = TRUE)
+      flows$counts <- round(temp$`O-D Traffic (StL Index)`, 0)
+      flows$origins <- temp$`Origin Zone ID`
+      flows$destinations <- temp$`Destination Zone ID`
+      flows$colN <- temp$`O-D Traffic (StL Index)`
+      hover <- paste0(flows$origins, " to ", flows$destinations, ': ', as.character(flows$counts))
+      pal <- colorNumeric(c("#a6bddb", "#0570b0", "#023858"), domain = range(temp$`O-D Traffic (StL Index)`))
+      p <- p %>%
+        addPolygons(data = subset(taz, TAZ %in% current_taz), weight = 1, opacity = 1, fillOpacity = .2, color = "#ED1B2E") %>%
+        addPolygons(data = subset(taz, TAZ %in% temp$`Destination Zone ID`), weight = 1, opacity = 1, fillOpacity = .2, color = "#008144") %>%
+        addPolylines(data = flows, weight = ~log(counts, 2)+1, label = hover, 
+                     group = ~destinations, color = ~pal(colN), opacity = 1)
+    }
+  }
+}
+p
+```

@@ -1,0 +1,152 @@
+---
+title: "Origin-Destination Map by Block"
+author: "Strategic Initiatives Research & Analytics"
+output: html_document
+---
+
+```{r, echo=FALSE, fig.width=12, fig.height=12}
+p <- leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+                                             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+                                             under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+                                             Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+                                             under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+      setView(lat = 44.963, lng = -93.22, zoom = 11)
+current_blocks <- rv$curr_blocks
+if (is.null(current_blocks)) {p <- p} else {
+  if (input$block_cluster) {
+    if (input$od_block == 'orig') {
+      bfm_temp <- copy(blocks_fm)
+    } else if (input$od_block == 'dest') {
+      bfm_temp <- blocks_fm[, .(ID, unlinked_wgts, LINKED_MULTIPLIER, dest_block = orig_block, dest_lat = orig_lat, dest_lon = orig_lon, 
+                                orig_block = dest_block, orig_lat = dest_lat, orig_lon = dest_lon, route, RouteType, TimePeriod)]
+    } else if (input$od_block == 'both') {
+      bfm_temp <- copy(blocks_fm)
+      bfm_temp2 <- blocks_fm[, .(ID, unlinked_wgts, LINKED_MULTIPLIER, dest_block = orig_block, dest_lat = orig_lat, dest_lon = orig_lon, 
+                                 orig_block = dest_block, orig_lat = dest_lat, orig_lon = dest_lon, route, RouteType, TimePeriod)]
+      bfm_temp <- rbindlist(list(bfm_temp, bfm_temp2))
+    }
+    if (!is.null(input$rf_bl)) {
+      temp_blocks <- bfm_temp[route %in% input$rf_bl]
+    } else {
+      temp_blocks <- bfm_temp
+    }
+    if (!is.null(input$rtf_bl)) {
+      temp_blocks <- temp_blocks[RouteType %in% input$rtf_bl]
+    }
+    if (!is.null(input$tpf_bl)) {
+      temp_blocks <- temp_blocks[TimePeriod %in% input$tpf_bl]
+    }
+    if (input$linked_odb) {
+      temp <- na.omit(temp_blocks[orig_block %in% current_blocks][, .(N = sum(unlinked_wgts * LINKED_MULTIPLIER)), 
+                                                                by = .(orig_block, orig_lat, orig_lon, dest_block, 
+                                                                       dest_lat, dest_lon)][N >= input$ignoreN_block])
+    } else {
+      temp <- na.omit(temp_blocks[orig_block %in% current_blocks][, .(N = sum(unlinked_wgts)), 
+                                                                by = .(orig_block, orig_lat, orig_lon, 
+                                                                       dest_block, dest_lat, dest_lon)][N >= input$ignoreN_block])
+    }
+    temp[, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+    if (nrow(temp) == 0) {p <- p %>% addPolygons(data = subset(blocks, GEOID10 %in% current_blocks), weight = 3, 
+                    opacity = 1, fillOpacity = .5, color = "black")} else {
+      if (input$heat_block) {
+        temp <- temp[, .(N = sum(N)), by = .(dest_block)][, colN := ifelse(N >= quantile(N, .95), quantile(N, .95), N)]
+        pal <- colorNumeric(c("#c6dbef", "#6baed6", "#2171b5", "#08306b"), domain = range(temp$colN))
+        dest_blocks <- subset(sp::merge(blocks, temp, by.x = "GEOID10", by.y = "dest_block"), !is.na(N))
+        p <- p %>% 
+          addPolygons(data = subset(blocks, GEOID10 %in% current_blocks), weight = 3, 
+                    opacity = 1, fillOpacity = .5, color = "black") %>%
+          addPolygons(data = dest_blocks, weight = 1, opacity = 1, fillOpacity = .7, color = ~pal(colN), 
+                    label = ~paste(round(N, 0)))
+      } else {
+        flows <- gcIntermediate(temp[,3:2], temp[,6:5], sp = TRUE, addStartEnd = TRUE)
+        flows$counts <- round(temp$N, 0)
+        flows$origins <- temp$orig_block
+        flows$destinations <- temp$dest_block
+        flows$colN <- temp$colN
+        hover <- paste0(flows$origins, " to ", flows$destinations, ': ', as.character(flows$counts))
+        pal <- colorNumeric(c("#a6bddb", "#0570b0", "#023858"), domain = range(temp$colN))
+        p <- p %>% 
+          addPolygons(data = subset(blocks, GEOID10 %in% temp$dest_block), weight = 1, opacity = 1, fillOpacity = .2, color = "#008144") %>%
+          addPolygons(data = subset(blocks, GEOID10 %in% temp$orig_block), weight = 1, opacity = 1, fillOpacity = .2, color = "#ED1B2E") %>%
+          addPolylines(data = flows, weight = ~log(counts, 2)+1, label = hover, 
+                     group = ~destinations, color = ~pal(colN), opacity = 1)
+      }
+    }
+  } else {
+    block <- subset(blocks, GEOID10 %in% current_blocks)
+    if (!is.null(input$rf_bl)) {
+      temp <- tbi[route %in% input$rf_bl]
+    } else {
+      temp <- tbi
+    }
+    if (!is.null(input$rtf_bl)) {
+      temp <- temp[RouteType %in% input$rtf_bl]
+    }
+    if (!is.null(input$tpf_bl)) {
+      temp <- temp[TIME_PERIOD %in% input$tpf_bl]
+    }
+    if (input$od_block == 'orig') {
+      spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                     data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+      proj4string(spOD) <- proj4string(block)
+      od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, block))))
+      ids <- od$ID
+      allLines <- do.call('rbind', od_lines[ids])
+      endPoints <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                      TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                      TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                      TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+    } else if (input$od_block == 'dest') {
+      spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                           .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                      data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+      proj4string(spOD2) <- proj4string(block)
+      od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, block))))
+      ids2 <- od2$ID
+      allLines <- do.call('rbind', od_lines[ids2])
+      endPoints <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                       TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                       TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                       TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+    } else {
+      spOD <- SpatialPointsDataFrame(na.omit(temp[, .(ORIGIN_LON, ORIGIN_LAT)]),
+                                     data = temp[!is.na(ORIGIN_LON) & !is.na(ORIGIN_LAT), .(ID)])
+      proj4string(spOD) <- proj4string(block)
+      od <- na.omit(data.table(cbind(spOD@data, sp::over(spOD, block))))
+      ids <- od$ID
+      spOD2 <- SpatialPointsDataFrame(temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON),
+                                           .(as.numeric(DESTINATION_LON), as.numeric(DESTINATION_LAT))], 
+                                      data = temp[!is.na(DESTINATION_LAT) & !is.na(DESTINATION_LON), .(ID)])
+      proj4string(spOD2) <- proj4string(block)
+      od2 <- na.omit(data.table(cbind(spOD2@data, sp::over(spOD2, block))))
+      ids2 <- od2$ID
+      allLines <- do.call('rbind', od_lines[c(ids, ids2)])
+      ep1 <- tbi[ID %in% ids, .(ID, lat = as.numeric(DESTINATION_LAT), lon = as.numeric(DESTINATION_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+      ep2 <- tbi[ID %in% ids2, .(ID, lat = as.numeric(ORIGIN_LAT), lon = as.numeric(ORIGIN_LON), TRANSFERS_FROM_FIRST_CODE, 
+                                 TRANSFERS_FROM_SECOND_CODE, TRANSFERS_FROM_THIRD_CODE, TRANSFERS_FROM_FOURTH_CODE, 
+                                 TRANSFERS_TO_FIRST_CODE, TRANSFERS_TO_SECOND_CODE, TRANSFERS_TO_THIRD_CODE, 
+                                 TRANSFERS_TO_FOURTH_CODE, TIME_PERIOD, route)]
+      endPoints <- rbind(ep1, ep2)
+    }
+    if (length(allLines) == 0) {p <- p %>% addPolygons(data = block, color = "#ED1B2E", opacity = 0.5, weight = 1)} else {
+      p <- p %>% 
+      addPolygons(data = block, color = "#ED1B2E", opacity = 0.5, weight = 1, layerId = ~paste0("block", GEOID10)) %>%
+      addCircleMarkers(data = endPoints, lng = ~lon, lat = ~lat, radius = 4, opacity = .7, weight = 1, color = "#0053A0", 
+                       popup = ~paste0("Route taken: ", route, " ", ifelse(is.na(TRANSFERS_FROM_FIRST_CODE), "", TRANSFERS_FROM_FIRST_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_FROM_SECOND_CODE), "", TRANSFERS_FROM_SECOND_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_FROM_THIRD_CODE), "", TRANSFERS_FROM_THIRD_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_FROM_FOURTH_CODE), "", TRANSFERS_FROM_FOURTH_CODE), " ",
+                                       ifelse(is.na(TRANSFERS_TO_FIRST_CODE), "", TRANSFERS_TO_FIRST_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_TO_SECOND_CODE), "", TRANSFERS_TO_SECOND_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_TO_THIRD_CODE), "", TRANSFERS_TO_THIRD_CODE), " ", 
+                                       ifelse(is.na(TRANSFERS_TO_FOURTH_CODE), "", TRANSFERS_TO_FOURTH_CODE),
+                                       "<br>Time period: ", TIME_PERIOD), layerId = ~paste0("dest", ID)) %>%
+      addPolylines(data = allLines, weight = 0.7, opacity = .3, color = "#0053A0")
+    }
+  }
+}
+p
+```
