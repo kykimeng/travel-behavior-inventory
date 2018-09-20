@@ -33,8 +33,8 @@ taz_fm <- readRDS("Data/taz_fm.RDS")
 on_off <- readRDS("Data/on_off.RDS")
 blockgroups <- readRDS("Data/blockgroups.RDS")
 # tract_to_tract_personal <- readRDS("Data/tract_to_tract_personal.RDS")
-sl_tract <- readRDS("Data/sl_tract.RDS")
-sl_taz <- readRDS("Data/sl_taz.RDS")
+# sl_tract <- readRDS("Data/sl_tract.RDS")
+# sl_taz <- readRDS("Data/sl_taz.RDS")
 
 varLabels <- c("Route Type Surveyed" = "RouteType", 
                "Number of Prior Transfers" = "TRANSFERS_FROM",

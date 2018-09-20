@@ -514,34 +514,34 @@ shinyServer(function(input, output, session){
     mergePoint <- data.table(cbind(spPoint@data, over(spPoint, tracts)))
     rv$curr_tracts <- c(rv$curr_tracts, mergePoint$GEOID10)
     if (nrow(na.omit(mergePoint)) == 0) return()
-    if (input$stl_dat == "TBI Data Only") {
+    # if (input$stl_dat == "TBI Data Only") {
       get_od(fm = tracts_fm, cluster = input$tract_cluster, od = input$od_tract, var = "tract", 
              r = input$rf_tr, rt = input$rtf_tr, tp = input$tpf_tr, linked_odb = input$linked_odtr, 
              ignoreN = input$ignoreN, heat = input$heat_tract, curr_poly = rv$curr_tracts, mapId = 'mapTract', 
              sp = tracts, tbi = tbi, session = session, exc_sel = input$exc_sel_tract)
-    } else if (input$stl_dat == "Streetlight Data Only") {
-      get_od_sl(tp = input$tpf_tr_sl, sl = sl_tract, dt = input$dtf_tr_sl, od = input$od_tract, 
-                heat = input$heat_tr_sl, curr_poly = rv$curr_tracts, exc_sel = input$exc_sel_tr_sl, 
-                sp = tracts, mapId = 'mapTract', session = session)
-    }
+    # } else if (input$stl_dat == "Streetlight Data Only") {
+    #   get_od_sl(tp = input$tpf_tr_sl, sl = sl_tract, dt = input$dtf_tr_sl, od = input$od_tract, 
+    #             heat = input$heat_tr_sl, curr_poly = rv$curr_tracts, exc_sel = input$exc_sel_tr_sl, 
+    #             sp = tracts, mapId = 'mapTract', session = session)
+    # }
   })
   
-  observeEvent(c(input$tract_cluster, input$ignoreN, input$rf_tr, input$rtf_tr, input$tpf_tr, input$linked_odtr, input$heat_tract, input$heat_tr_sl, 
-                 input$tpf_tr_sl, input$dtf_tr_sl, input$stl_dat, input$od_tract, input$exc_sel_tract, input$exc_sel_tr_sl), {
+  observeEvent(c(input$tract_cluster, input$ignoreN, input$rf_tr, input$rtf_tr, input$tpf_tr, input$linked_odtr, input$heat_tract,
+                 input$stl_dat, input$od_tract, input$exc_sel_tract), {
     current_tracts <- rv$curr_tracts
     if (is.null(current_tracts)) return()
     leafletProxy('mapTract', session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
-    if (input$stl_dat == "TBI Data Only") {
+    # if (input$stl_dat == "TBI Data Only") {
       get_od(fm = tracts_fm, cluster = input$tract_cluster, od = input$od_tract, var = "tract", 
              r = input$rf_tr, rt = input$rtf_tr, tp = input$tpf_tr, linked_odb = input$linked_odtr, 
              ignoreN = input$ignoreN, heat = input$heat_tract, curr_poly = rv$curr_tracts, mapId = 'mapTract', 
              sp = tracts, tbi = tbi, session = session, exc_sel = input$exc_sel_tract)
-    } else if (input$stl_dat == "Streetlight Data Only") {
-      req(input$tpf_tr_sl, input$dtf_tr_sl)
-      get_od_sl(tp = input$tpf_tr_sl, sl = sl_tract, dt = input$dtf_tr_sl, od = input$od_tract, 
-                heat = input$heat_tr_sl, curr_poly = rv$curr_tracts, exc_sel = input$exc_sel_tr_sl, 
-                sp = tracts, mapId = 'mapTract', session = session)
-    }
+    # } else if (input$stl_dat == "Streetlight Data Only") {
+    #   req(input$tpf_tr_sl, input$dtf_tr_sl)
+    #   get_od_sl(tp = input$tpf_tr_sl, sl = sl_tract, dt = input$dtf_tr_sl, od = input$od_tract, 
+    #             heat = input$heat_tr_sl, curr_poly = rv$curr_tracts, exc_sel = input$exc_sel_tr_sl, 
+    #             sp = tracts, mapId = 'mapTract', session = session)
+    # }
   })
   
   observeEvent(input$resetTract, {
@@ -604,33 +604,33 @@ shinyServer(function(input, output, session){
     mergePoint <- data.table(cbind(spPoint@data, over(spPoint, taz)))
     rv$curr_taz <- c(rv$curr_taz, mergePoint$GEOID10)
     if (nrow(na.omit(mergePoint)) == 0) return()
-    if (input$stl_dat_taz == "TBI Data Only") {
+    # if (input$stl_dat_taz == "TBI Data Only") {
       get_od(fm = taz_fm, cluster = input$taz_cluster, od = input$od_taz, var = "taz", 
              r = input$rf_taz, rt = input$rtf_taz, tp = input$tpf_taz, linked_odb = input$linked_odtaz, 
              ignoreN = input$ignoreN_taz, heat = input$heat_taz, curr_poly = rv$curr_taz, mapId = 'mapTaz', 
              sp = taz, tbi = tbi, session = session, exc_sel = input$exc_sel_taz)
-    } else if (input$stl_dat_taz == "Streetlight Data Only") {
-      get_od_sl(tp = input$tpf_taz_sl, sl = sl_taz, dt = input$dtf_taz_sl, od = input$od_taz, 
-                heat = input$heat_taz_sl, curr_poly = rv$curr_taz, exc_sel = input$exc_sel_taz_sl, 
-                sp = taz, mapId = 'mapTaz', session = session)
-    }
+    # } else if (input$stl_dat_taz == "Streetlight Data Only") {
+    #   get_od_sl(tp = input$tpf_taz_sl, sl = sl_taz, dt = input$dtf_taz_sl, od = input$od_taz, 
+    #             heat = input$heat_taz_sl, curr_poly = rv$curr_taz, exc_sel = input$exc_sel_taz_sl, 
+    #             sp = taz, mapId = 'mapTaz', session = session)
+    # }
   })
   
   observeEvent(c(input$taz_cluster, input$ignoreN_taz, input$rf_taz, input$rtf_taz, input$tpf_taz, input$linked_odtaz, input$heat_taz, 
-                 input$stl_dat_taz, input$heat_taz_sl, input$tpf_taz_sl, input$dtf_taz_sl, input$od_taz, input$exc_sel_taz, input$exc_sel_taz_sl), {
+                 input$stl_dat_taz, input$od_taz, input$exc_sel_taz), {
     current_taz <- rv$curr_taz
     if (is.null(current_taz)) return()
     leafletProxy('mapTaz', session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
-    if (input$stl_dat_taz == "TBI Data Only") {
+    # if (input$stl_dat_taz == "TBI Data Only") {
       get_od(fm = taz_fm, cluster = input$taz_cluster, od = input$od_taz, var = "taz", 
              r = input$rf_taz, rt = input$rtf_taz, tp = input$tpf_taz, linked_odb = input$linked_odtaz, 
              ignoreN = input$ignoreN_taz, heat = input$heat_taz, curr_poly = current_taz, mapId = 'mapTaz', 
              sp = taz, tbi = tbi, session = session, exc_sel = input$exc_sel_taz)
-    } else if (input$stl_dat_taz == "Streetlight Data Only") {
-      get_od_sl(tp = input$tpf_taz_sl, sl = sl_taz, dt = input$dtf_taz_sl, od = input$od_taz, 
-                heat = input$heat_taz_sl, curr_poly = current_taz, exc_sel = input$exc_sel_taz_sl, 
-                sp = taz, mapId = 'mapTaz', session = session)
-    }
+    # } else if (input$stl_dat_taz == "Streetlight Data Only") {
+    #   get_od_sl(tp = input$tpf_taz_sl, sl = sl_taz, dt = input$dtf_taz_sl, od = input$od_taz, 
+    #             heat = input$heat_taz_sl, curr_poly = current_taz, exc_sel = input$exc_sel_taz_sl, 
+    #             sp = taz, mapId = 'mapTaz', session = session)
+    # }
   })
   
   observeEvent(input$resetTaz, {

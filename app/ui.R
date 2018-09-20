@@ -93,12 +93,12 @@ shinyUI(
       conditionalPanel(
         condition = "input.menu == 'odtaz'", 
         box(width = 12, background = 'blue',
-            radioButtons('stl_dat_taz', "Show:", choices = c("TBI Data Only", "Streetlight Data Only"), selected = "TBI Data Only"),
+            # radioButtons('stl_dat_taz', "Show:", choices = c("TBI Data Only", "Streetlight Data Only"), selected = "TBI Data Only"),
             radioButtons('od_taz', "Show:", choices = c("Destinations Only" = 'orig', "Origins Only" = 'dest', "Both Origins and Destinations" = 'both'), 
                          selected = 'both'),
             # inputs specific to TBI data
-            conditionalPanel(
-              condition = "input.stl_dat_taz == 'TBI Data Only'", 
+            # conditionalPanel(
+            #   condition = "input.stl_dat_taz == 'TBI Data Only'", 
               checkboxInput('taz_cluster', "Group Origins/Destinations by TAZ", value = TRUE),
               p(em("Note: Expansion Factors are only applied when Origins/Destinations are grouped.")), 
               conditionalPanel(condition = "input.taz_cluster == true", 
@@ -112,20 +112,20 @@ shinyUI(
               selectInput('rf_taz', "Route Filter:", choices = sort(as.numeric(na.omit(unique(tbi_OD$route)))),
                           multiple = TRUE, selectize = FALSE, selected = NULL),
               selectInput('rtf_taz', "Route Type Filter:", choices = sort(na.omit(unique(tbi$RouteType))), multiple = TRUE, selected = NULL), 
-              selectInput('tpf_taz', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL)
-            ), 
+              selectInput('tpf_taz', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL),
+            # ), 
             # inputs specific to streetlight data
-            conditionalPanel(
-              condition = "input.stl_dat_taz == 'Streetlight Data Only'", 
-              checkboxInput('heat_taz_sl', "Show Heat Map"),
-              conditionalPanel(
-                condition = "input.heat_taz_sl == true", 
-                checkboxInput('exc_sel_taz_sl', "Exclude Selected TAZ", value = F)
-              ),
-              selectInput('dtf_taz_sl', "Day Type Filter:", choices = sort(na.omit(unique(sl_tract$`Day Type`))), selected = "1: Average Weekday (M-F)"),
-              selectInput('tpf_taz_sl', "Time Period Filter:", choices = sort(na.omit(unique(sl_tract$`Day Part`))), 
-                          selected = "0: All Day (12am-12am)", multiple = TRUE)
-            ),
+            # conditionalPanel(
+            #   condition = "input.stl_dat_taz == 'Streetlight Data Only'", 
+            #   checkboxInput('heat_taz_sl', "Show Heat Map"),
+            #   conditionalPanel(
+            #     condition = "input.heat_taz_sl == true", 
+            #     checkboxInput('exc_sel_taz_sl', "Exclude Selected TAZ", value = F)
+            #   ),
+            #   selectInput('dtf_taz_sl', "Day Type Filter:", choices = sort(na.omit(unique(sl_tract$`Day Type`))), selected = "1: Average Weekday (M-F)"),
+            #   selectInput('tpf_taz_sl', "Time Period Filter:", choices = sort(na.omit(unique(sl_tract$`Day Part`))), 
+            #               selected = "0: All Day (12am-12am)", multiple = TRUE)
+            # ),
         tags$hr(), 
         actionButton("resetTaz", "Clear Map"), 
         tags$hr(), 
@@ -136,12 +136,12 @@ shinyUI(
       conditionalPanel(
         condition = "input.menu == 'odtract'", 
         box(width = 12, background = 'blue',
-            radioButtons('stl_dat', "Show:", choices = c("TBI Data Only", "Streetlight Data Only"), selected = "TBI Data Only"),
+            # radioButtons('stl_dat', "Show:", choices = c("TBI Data Only", "Streetlight Data Only"), selected = "TBI Data Only"),
             radioButtons('od_tract', "Show:", choices = c("Destinations Only" = 'orig', "Origins Only" = 'dest', "Both Origins and Destinations" = 'both'), 
                          selected = 'both'),
             # inputs specific to TBI data
-            conditionalPanel(
-              condition = "input.stl_dat == 'TBI Data Only'",
+            # conditionalPanel(
+            #   condition = "input.stl_dat == 'TBI Data Only'",
               checkboxInput('tract_cluster', "Group Origins/Destinations by Tract", value = TRUE),
               p(em("Note: Expansion Factors are only applied when Origins/Destinations are grouped.")),
               conditionalPanel(condition = "input.tract_cluster == true", 
@@ -155,20 +155,20 @@ shinyUI(
               selectInput('rf_tr', "Select Route to Filter:", choices = sort(as.numeric(na.omit(unique(tbi_OD$route)))),
                           multiple = TRUE, selectize = FALSE, selected = NULL),
               selectInput('rtf_tr', "Route Type Filter:", choices = sort(na.omit(unique(tbi$RouteType))), multiple = TRUE, selected = NULL), 
-              selectInput('tpf_tr', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL)
-            ), 
+              selectInput('tpf_tr', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL),
+            # ), 
             # inputs specific to streetlight data
-            conditionalPanel(
-              condition = "input.stl_dat == 'Streetlight Data Only'", 
-              checkboxInput('heat_tr_sl', "Show Heat Map"),
-              conditionalPanel(
-                condition = "input.heat_tr_sl == true", 
-                checkboxInput('exc_sel_tr_sl', "Exclude Selected Tract", value = F)
-              ),
-              selectInput('dtf_tr_sl', "Day Type Filter:", choices = sort(na.omit(unique(sl_tract$`Day Type`))), selected = "1: Average Weekday (M-F)"),
-              selectInput('tpf_tr_sl', "Time Period Filter:", choices = sort(na.omit(unique(sl_tract$`Day Part`))), 
-                          selected = "0: All Day (12am-12am)", multiple = TRUE)
-            ), 
+            # conditionalPanel(
+            #   condition = "input.stl_dat == 'Streetlight Data Only'", 
+            #   checkboxInput('heat_tr_sl', "Show Heat Map"),
+            #   conditionalPanel(
+            #     condition = "input.heat_tr_sl == true", 
+            #     checkboxInput('exc_sel_tr_sl', "Exclude Selected Tract", value = F)
+            #   ),
+            #   selectInput('dtf_tr_sl', "Day Type Filter:", choices = sort(na.omit(unique(sl_tract$`Day Type`))), selected = "1: Average Weekday (M-F)"),
+            #   selectInput('tpf_tr_sl', "Time Period Filter:", choices = sort(na.omit(unique(sl_tract$`Day Part`))), 
+            #               selected = "0: All Day (12am-12am)", multiple = TRUE)
+            # ), 
         tags$hr(), 
         actionButton("resetTract", "Clear Map"), 
         tags$hr(), 
@@ -259,7 +259,7 @@ shinyUI(
                 tags$ul(
                   tags$li(p("User can visualize the origin-destination data by route, census block, TAZ, census tract, or custom boundary box.")), 
                   tags$li(p("The origin-destination pairs can be grouped by geographic areas (block, TAZ, or tract), and/or further filtered by route or route type, and time period.")), 
-                  tags$li(p("When looking at O-D pairs by Tract or TAZ, users have the options to use Streetlight data or TBI data.")),
+                  # tags$li(p("When looking at O-D pairs by Tract or TAZ, users have the options to use Streetlight data or TBI data.")),
                   tags$li(p("For a selected geographic area (i.e. censur block, TAZ, census tract, or custom bounding box), 'origins' refers to those o-d pairs
                              whose origins are within the selected area, 'destinations' refers to those o-d pairs whose destinations are within the 
                             selected area."))
@@ -268,10 +268,10 @@ shinyUI(
                 tags$ul(
                   tags$li(p("Users can visualize the dense area of riders' homes/hotels, origins, destinations, boarding locations, or alighting locations."))
                 ),
-                h5(strong("Dot Density Map"), style = "color:#0053A0"), 
-                tags$ul(
-                  tags$li(p("Users can visualize origins, destinations, home/hotel addresses as dots on a map, or cluster them for better visualization."))
-                ),
+                # h5(strong("Dot Density Map"), style = "color:#0053A0"), 
+                # tags$ul(
+                #   tags$li(p("Users can visualize origins, destinations, home/hotel addresses as dots on a map, or cluster them for better visualization."))
+                # ),
                 h5(strong("Flow Chart"), style = "color:#0053A0"), 
                 tags$ul(
                   tags$li(p("Users can look at flows between segments of a given route.")), 
@@ -302,13 +302,9 @@ shinyUI(
                 people in Minneapolis-St. Paul region and surrounding counties travel, including what mode of transportation they use, where they go, 
                 and when. For a complete report, ", tags$a(href = "https://metrocouncil.org/Transportation/Publications-And-Resources/Travel-Behavior-Inventory.aspx", 
                                                            "CLICK HERE")), 
-              h5(strong("Streetlight"), style = "color:#0053A0"), 
-              p("Every month, Streetlight team processes over 60 billion new location records to keep their analytics up-to-date. Their sample size represents 
-                about 23% of travel activity in the U.S. and Canada. Archival data from past month remain in their database, so you can track trends. They 
-                evaluate and incorporate new data providers regularly so that they have best resources available. The type of data they use to infer 
-                origin-destination include Location-Based Services data (from smartphone apps; used in this app) and Navigation-GPS data (from devices that 
-                help people navigate). For additional information on Streetlight data, ", 
-                tags$a(href = "https://www.streetlightdata.com/", "CLICK HERE"))
+              h5(strong("2010 Decennial Census data"), style = "color:#0053A0"), 
+              p("Census data provide spatial data for census tracts, blocks, block groups and TAZ (Traffic Analysis Zone) polygons. For additional information, ", 
+                tags$a(href = "https://gisdata.mn.gov/dataset/us-mn-state-metc-society-census2010population", "CLICK HERE"))
             )
           ), 
           # interactive plots tab ----
