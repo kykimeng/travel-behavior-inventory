@@ -414,82 +414,82 @@ shinyServer(function(input, output, session){
   # O-D map by block -----
   rv <- reactiveValues(curr_tracts = NULL, curr_blocks = NULL, curr_taz = NULL)
   
-  output$mapGeo <- renderLeaflet({
-    leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
-                           attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
-                           under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
-                           Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
-                           under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
-      setView(lat = 44.963, lng = -93.22, zoom = 11) 
-  })
-  
-  # get all o-d pairs corresponding to selected area(s)
-  observeEvent(input$mapGeo_click, {
-    click <- input$mapGeo_click
-    if (is.null(click)) return()
-    # turn lat/lon into a spatial point
-    latLon <- data.frame(lon = click$lng, lat = click$lat)
-    spPoint <- SpatialPointsDataFrame(latLon, data = data.frame(Type = "Address"))
-    proj4string(spPoint) <- proj4string(blocks)
-    mergePoint <- data.table(cbind(spPoint@data, over(spPoint, blocks)))
-    if (nrow(na.omit(mergePoint)) == 0) return() # do nothing if no intersection with blocks 
-    rv$curr_blocks <- c(rv$curr_blocks, mergePoint$GEOID10) # add selected block to the array 
-    get_od(fm = blocks_fm, cluster = input$block_cluster, od = input$od_block, var = "block", 
-           r = input$rf_bl, rt = input$rtf_bl, tp = input$tpf_bl, linked_odb = input$linked_odb, 
-           ignoreN = input$ignoreN_block, heat = input$heat_block, curr_poly = rv$curr_blocks, mapId = 'mapGeo', 
-           sp = blocks, tbi = tbi, session = session) # update 'mapGeo'
-  })
-  
-  observeEvent(c(input$block_cluster, input$ignoreN_block, input$rf_bl, input$rtf_bl, input$tpf_bl, 
-                 input$linked_odb, input$heat_block, input$od_block, input$exc_sel_block), {
-    leafletProxy('mapGeo', session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
-    current_blocks <- rv$curr_blocks
-    if (is.null(current_blocks)) return()
-    get_od(fm = blocks_fm, cluster = input$block_cluster, od = input$od_block, var = "block", 
-           r = input$rf_bl, rt = input$rtf_bl, tp = input$tpf_bl, linked_odb = input$linked_odb, 
-           ignoreN = input$ignoreN_block, heat = input$heat_block, curr_poly = current_blocks, mapId = 'mapGeo', 
-           sp = blocks, tbi = tbi, session = session) # update 'mapGeo'
-  })
-  
-  observeEvent(input$resetGeo, {
-    leafletProxy("mapGeo", session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
-    rv$curr_blocks <- NULL
-  })
-  
-  output$dlodb <- downloadHandler(
-    filename = "ODMapByBlock.html", 
-    content = function(file) {
-      src <- normalizePath('mymap_block.Rmd')
-      
-      # temporarily switch to the temp dir, in case you do not have write
-      # permission to the current working directory
-      owd <- setwd(tempdir())
-      on.exit(setwd(owd))
-      file.copy(src, 'mymap_block.Rmd')
-      
-      out <- rmarkdown::render('mymap_block.Rmd',
-                               output_format = "html_document"
-      )
-      file.rename(out, file)
-    }
-  )
-  output$pdf_odb <- downloadHandler(
-    filename = "ODMapByBlock.pdf", 
-    content = function(file) {
-      src <- normalizePath('mymap_block.Rmd')
-      
-      # temporarily switch to the temp dir, in case you do not have write
-      # permission to the current working directory
-      owd <- setwd(tempdir())
-      on.exit(setwd(owd))
-      file.copy(src, 'mymap_block.Rmd')
-      
-      out <- webshot(rmarkdown::render('mymap_block.Rmd',
-                               output_format = "html_document"
-      ), file = file)
-      out
-    }
-  )
+  # output$mapGeo <- renderLeaflet({
+  #   leaflet() %>% addTiles(urlTemplate = 'http://tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
+  #                          attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>,
+  #                          under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>.
+  #                          Data by <a href="http://openstreetmap.org">OpenStreetMap</a>,
+  #                          under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.') %>%
+  #     setView(lat = 44.963, lng = -93.22, zoom = 11) 
+  # })
+  # 
+  # # get all o-d pairs corresponding to selected area(s)
+  # observeEvent(input$mapGeo_click, {
+  #   click <- input$mapGeo_click
+  #   if (is.null(click)) return()
+  #   # turn lat/lon into a spatial point
+  #   latLon <- data.frame(lon = click$lng, lat = click$lat)
+  #   spPoint <- SpatialPointsDataFrame(latLon, data = data.frame(Type = "Address"))
+  #   proj4string(spPoint) <- proj4string(blocks)
+  #   mergePoint <- data.table(cbind(spPoint@data, over(spPoint, blocks)))
+  #   if (nrow(na.omit(mergePoint)) == 0) return() # do nothing if no intersection with blocks 
+  #   rv$curr_blocks <- c(rv$curr_blocks, mergePoint$GEOID10) # add selected block to the array 
+  #   get_od(fm = blocks_fm, cluster = input$block_cluster, od = input$od_block, var = "block", 
+  #          r = input$rf_bl, rt = input$rtf_bl, tp = input$tpf_bl, linked_odb = input$linked_odb, 
+  #          ignoreN = input$ignoreN_block, heat = input$heat_block, curr_poly = rv$curr_blocks, mapId = 'mapGeo', 
+  #          sp = blocks, tbi = tbi, session = session) # update 'mapGeo'
+  # })
+  # 
+  # observeEvent(c(input$block_cluster, input$ignoreN_block, input$rf_bl, input$rtf_bl, input$tpf_bl, 
+  #                input$linked_odb, input$heat_block, input$od_block, input$exc_sel_block), {
+  #   leafletProxy('mapGeo', session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
+  #   current_blocks <- rv$curr_blocks
+  #   if (is.null(current_blocks)) return()
+  #   get_od(fm = blocks_fm, cluster = input$block_cluster, od = input$od_block, var = "block", 
+  #          r = input$rf_bl, rt = input$rtf_bl, tp = input$tpf_bl, linked_odb = input$linked_odb, 
+  #          ignoreN = input$ignoreN_block, heat = input$heat_block, curr_poly = current_blocks, mapId = 'mapGeo', 
+  #          sp = blocks, tbi = tbi, session = session) # update 'mapGeo'
+  # })
+  # 
+  # observeEvent(input$resetGeo, {
+  #   leafletProxy("mapGeo", session) %>% clearShapes() %>% removeMarker(layerId = paste0("dest", tbi$ID))
+  #   rv$curr_blocks <- NULL
+  # })
+  # 
+  # output$dlodb <- downloadHandler(
+  #   filename = "ODMapByBlock.html", 
+  #   content = function(file) {
+  #     src <- normalizePath('mymap_block.Rmd')
+  #     
+  #     # temporarily switch to the temp dir, in case you do not have write
+  #     # permission to the current working directory
+  #     owd <- setwd(tempdir())
+  #     on.exit(setwd(owd))
+  #     file.copy(src, 'mymap_block.Rmd')
+  #     
+  #     out <- rmarkdown::render('mymap_block.Rmd',
+  #                              output_format = "html_document"
+  #     )
+  #     file.rename(out, file)
+  #   }
+  # )
+  # output$pdf_odb <- downloadHandler(
+  #   filename = "ODMapByBlock.pdf", 
+  #   content = function(file) {
+  #     src <- normalizePath('mymap_block.Rmd')
+  #     
+  #     # temporarily switch to the temp dir, in case you do not have write
+  #     # permission to the current working directory
+  #     owd <- setwd(tempdir())
+  #     on.exit(setwd(owd))
+  #     file.copy(src, 'mymap_block.Rmd')
+  #     
+  #     out <- webshot(rmarkdown::render('mymap_block.Rmd',
+  #                              output_format = "html_document"
+  #     ), file = file)
+  #     out
+  #   }
+  # )
   
   # o-d map by tracts ----
   output$mapTract <- renderLeaflet({

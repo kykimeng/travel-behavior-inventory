@@ -21,7 +21,7 @@ shinyUI(
           menuItem(text = "Interactive Plots", icon = icon("bar-chart"), tabName = "plots"), 
           menuItem(text = "O-D Map", icon = icon("map"), 
                    menuSubItem("by Route", tabName = "odroute"), # sub tabs
-                   menuSubItem("by Block", tabName = "odblock"), 
+                   # menuSubItem("by Block", tabName = "odblock"), 
                    menuSubItem("by TAZ", tabName = 'odtaz'), 
                    menuSubItem("by Tract", tabName = "odtract"), 
                    menuSubItem("by Custom Bounding Box", tabName = 'odbbox')), 
@@ -69,27 +69,27 @@ shinyUI(
           downloadButton('pdf_odr', "Download PDF"))
         ), 
         # input panel for by Block tab ----
-      conditionalPanel(
-        condition = "input.menu == 'odblock'", 
-        box(width = 12, background = 'blue',
-            radioButtons('od_block', "Show:", choices = c("Destinations Only" = 'orig', "Origins Only" = 'dest', "Both Origins and Destinations" = 'both'), 
-                         selected = 'both'),
-        checkboxInput('block_cluster', "Group Origins/Destinations by Block", value = TRUE),
-        p(em("Note: Expansion Factors are only applied when Origins/Destinations are grouped.")), 
-        conditionalPanel(condition = "input.block_cluster == true", 
-                         checkboxInput('heat_block', "Show Heat Map"),
-                         checkboxInput('linked_odb', "Use Linked Weights"),
-                         numericInput('ignoreN_block', "Ignore Blocks with Observations fewer than: ", value = 0)), 
-        selectInput('rf_bl', "Route Filter:", choices = sort(as.numeric(na.omit(unique(tbi_OD$route)))),
-                    multiple = TRUE, selectize = FALSE, selected = NULL),
-        selectInput('rtf_bl', "Route Type Filter:", choices = sort(na.omit(unique(tbi$RouteType))), multiple = TRUE, selected = NULL), 
-        selectInput('tpf_bl', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL), 
-        tags$hr(),
-        actionButton("resetGeo", "Clear Map"), 
-        tags$hr(), 
-        downloadButton('dlodb', "Download Interactive Map"), 
-        downloadButton('pdf_odb', "Download PDF"))
-      ), 
+      # conditionalPanel(
+      #   condition = "input.menu == 'odblock'", 
+      #   box(width = 12, background = 'blue',
+      #       radioButtons('od_block', "Show:", choices = c("Destinations Only" = 'orig', "Origins Only" = 'dest', "Both Origins and Destinations" = 'both'), 
+      #                    selected = 'both'),
+      #   checkboxInput('block_cluster', "Group Origins/Destinations by Block", value = TRUE),
+      #   p(em("Note: Expansion Factors are only applied when Origins/Destinations are grouped.")), 
+      #   conditionalPanel(condition = "input.block_cluster == true", 
+      #                    checkboxInput('heat_block', "Show Heat Map"),
+      #                    checkboxInput('linked_odb', "Use Linked Weights"),
+      #                    numericInput('ignoreN_block', "Ignore Blocks with Observations fewer than: ", value = 0)), 
+      #   selectInput('rf_bl', "Route Filter:", choices = sort(as.numeric(na.omit(unique(tbi_OD$route)))),
+      #               multiple = TRUE, selectize = FALSE, selected = NULL),
+      #   selectInput('rtf_bl', "Route Type Filter:", choices = sort(na.omit(unique(tbi$RouteType))), multiple = TRUE, selected = NULL), 
+      #   selectInput('tpf_bl', "Time Period Filter:", choices = sort(na.omit(unique(tbi$TIME_PERIOD))), multiple = TRUE, selected = NULL), 
+      #   tags$hr(),
+      #   actionButton("resetGeo", "Clear Map"), 
+      #   tags$hr(), 
+      #   downloadButton('dlodb', "Download Interactive Map"), 
+      #   downloadButton('pdf_odb', "Download PDF"))
+      # ), 
       # input panel for by TAZ tab ----
       conditionalPanel(
         condition = "input.menu == 'odtaz'", 
@@ -258,10 +258,10 @@ shinyUI(
                 ), 
                 h5(strong("O-D Map"), style = "color:#0053A0"), 
                 tags$ul(
-                  tags$li(p("User can visualize the origin-destination data by route, census block, TAZ, census tract, or custom boundary box.")), 
-                  tags$li(p("The origin-destination pairs can be grouped by geographic areas (block, TAZ, or tract), and/or further filtered by route or route type, and time period.")), 
+                  tags$li(p("User can visualize the origin-destination data by route, TAZ, census tract, or custom boundary box.")), 
+                  tags$li(p("The origin-destination pairs can be grouped by geographic areas (TAZ, or tract), and/or further filtered by route or route type, and time period.")), 
                   # tags$li(p("When looking at O-D pairs by Tract or TAZ, users have the options to use Streetlight data or TBI data.")),
-                  tags$li(p("For a selected geographic area (i.e. censur block, TAZ, census tract, or custom bounding box), 'origins' refers to those o-d pairs
+                  tags$li(p("For a selected geographic area (i.e. TAZ, census tract, or custom bounding box), 'origins' refers to those o-d pairs
                              whose origins are within the selected area, 'destinations' refers to those o-d pairs whose destinations are within the 
                             selected area."))
                 ), 
@@ -435,16 +435,16 @@ shinyUI(
                           top = 100, right = 20, draggable = F, background = "#ffffff")
           ), 
           # o-d block tab ----
-          tabItem(
-            'odblock', 
-            tags$style(type = "text/css", "#mapGeo {height: calc(100vh - 100px) !important;}"),
-            conditionalPanel(condition="$('html').hasClass('shiny-busy')",
-                             tags$div("Loading... Please wait.",id="loadmessage")
-            ),
-            p(strong("Click anywhere on the map to start. Display settings and filters can be further modified in the sidebar 
-                     panel.")),
-            leafletOutput('mapGeo', width = '100%')
-          ), 
+          # tabItem(
+          #   'odblock', 
+          #   tags$style(type = "text/css", "#mapGeo {height: calc(100vh - 100px) !important;}"),
+          #   conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+          #                    tags$div("Loading... Please wait.",id="loadmessage")
+          #   ),
+          #   p(strong("Click anywhere on the map to start. Display settings and filters can be further modified in the sidebar 
+          #            panel.")),
+          #   leafletOutput('mapGeo', width = '100%')
+          # ), 
           # o-d taz tab ----
           tabItem(
             'odtaz',
