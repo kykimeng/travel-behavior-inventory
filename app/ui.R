@@ -1,5 +1,6 @@
 shinyUI(
   fluidPage(
+    title = "TBI Viz",
     tags$img(src = "mt_bar.png", width = '100%'),
     tags$head(
       tags$style(HTML(".sidebar {
@@ -301,7 +302,8 @@ shinyUI(
               p("The Travel Behavior Inventory (TBI) is a comprehensive survey conducted every 10 years by the Metropolitan Council to assess how and how much 
                 people in Minneapolis-St. Paul region and surrounding counties travel, including what mode of transportation they use, where they go, 
                 and when. For a complete report, ", tags$a(href = "https://metrocouncil.org/Transportation/Publications-And-Resources/Travel-Behavior-Inventory.aspx", 
-                                                           "CLICK HERE")), 
+                                                           "CLICK HERE")),
+              p("For a copy of the TBI data, ", tags$a(href = "https://gisdata.mn.gov/dataset/us-mn-state-metc-society-tbi-transit-onboard2016", "CLICK HERE")),
               h5(strong("2010 Decennial Census data"), style = "color:#0053A0"), 
               p("Census data provide spatial data for census tracts, blocks, block groups and TAZ (Traffic Analysis Zone) polygons. For additional information, ", 
                 tags$a(href = "https://gisdata.mn.gov/dataset/us-mn-state-metc-society-census2010population", "CLICK HERE"))
@@ -426,9 +428,11 @@ shinyUI(
             conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                              tags$div("Loading... Please wait.",id="loadmessage")
             ), # loading message
+            p(strong("Choose Measure and Route Surveyed inputs, and optional Time Period, Age Group, Race/Ethnicity, and Income 
+                      Level inputs. Click on Map it! to update the map.")), 
             leafletOutput('myMap', width = '100%'), 
             absolutePanel(p("Little circles are destination points. Click on them for additional info."), 
-                          top = 80, right = 20, draggable = F, background = "#ffffff")
+                          top = 100, right = 20, draggable = F, background = "#ffffff")
           ), 
           # o-d block tab ----
           tabItem(
@@ -437,6 +441,8 @@ shinyUI(
             conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                              tags$div("Loading... Please wait.",id="loadmessage")
             ),
+            p(strong("Click anywhere on the map to start. Display settings and filters can be further modified in the sidebar 
+                     panel.")),
             leafletOutput('mapGeo', width = '100%')
           ), 
           # o-d taz tab ----
@@ -446,6 +452,8 @@ shinyUI(
             conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                              tags$div("Loading... Please wait.",id="loadmessage")
             ),
+            p(strong("Click anywhere on the map to start. Display settings and filters can be further modified in the sidebar 
+                     panel.")),
             leafletOutput('mapTaz', width = '100%')
           ), 
           # o-d tract tab ----
@@ -455,6 +463,8 @@ shinyUI(
             conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                              tags$div("Loading... Please wait.",id="loadmessage")
             ),
+            p(strong("Click anywhere on the map to start. Display settings and filters can be further modified in the sidebar 
+                     panel.")),
             leafletOutput('mapTract', width = '100%')
           ), 
           # o-d custom bounding box tab ----
@@ -464,6 +474,9 @@ shinyUI(
             conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                              tags$div("Loading... Please wait.",id="loadmessage")
             ),
+            p(strong("To start, click on the map multiple times around the area of interest, and then click Draw Box 
+                     in the sidebar panel to draw the box. Display settings and filters can be further modified in the sidebar 
+                     panel.")),
             leafletOutput('mapBbox', width = '100%')
           ), 
           # heatmap tab ----
