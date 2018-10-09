@@ -288,7 +288,7 @@ shinyUI(
                             " by Kim Ky (kykimeng@gmail.com).")))
                 ), 
             box(
-              width = 6, status = 'success', solidHeader = TRUE, title = "Credits where credits are due",
+              width = 6, status = 'success', solidHeader = TRUE, title = "Credit where credit is due",
               p("The data, images and code supporting this Shiny app are all the property of Metro Transit, a division of 
                 Metropolitan Council. The author built and designed this Shiny app during her tenure at 
                 Metro Transit."), 
