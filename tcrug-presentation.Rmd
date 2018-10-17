@@ -1,0 +1,31 @@
+---
+title: "Travel Behavior Inventory Onboard Survey"
+author: |
+  | Kim Eng Ky
+  | Data Scientist
+  | UnitedHealthcare Medicare & Retirement
+  | (Formerly, Metro Transit)
+date: "10/18/2018"
+output: 
+  beamer_presentation:
+    fonttheme: "structurebold"
+fontsize: 14pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(data.table)
+```
+
+## [Travel Behavior Inventory (TBI)](https://gisdata.mn.gov/dataset/us-mn-state-metc-society-tbi-transit-onboard2016)
+
+- Conducted by the [Metropolitan Council](https://metrocouncil.org/)
+- To assess how and how much people in the Twin Cities metropolitan area travel
+- e.g. what mode of transportation they use, where they go, and when
+
+## R Packages Used 
+
+- [`shiny`](https://shiny.rstudio.com/): "An R package that makes it easy to build interactive web apps straight from R."
+- [`leaflet`](https://rstudio.github.io/leaflet/): An R package for interactive mapping. 
+- [`ggplot2`](https://ggplot2.tidyverse.org/): A data visualization package
+- [`plotly`](https://plot.ly/r/): Adds interactivity to `ggplot()` plots
